@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "270903898759",
+    "project_id": "shreemaryada-ems",
+    "storage_bucket": "shreemaryada-ems.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270903898759:android:aa48b1b78779c90d647e22",
+        "android_client_info": {
+          "package_name": "com.shreemaryada.ems"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrUL3q6H5f26hv_DFPclXU0zMKoj3lpRg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
