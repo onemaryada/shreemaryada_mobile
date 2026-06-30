@@ -2,95 +2,178 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TasksStackParamList } from '../TasksNavigator';
-import { Container, Text, EmptyState } from '../../../shared/components';
+import { ScreenWrapper, Text, EmptyState, GlassCard, AnimatedListItem } from '../../../shared/components';
 import { theme } from '../../../core/theme';
-import { firebaseFirestore, COLLECTIONS } from '../../../core/firebase';
-import { Task } from '../services/tasksService';
+import { getUserTasks, Task } from '../services/tasksService';
+import { useAuth } from '../../../core/auth/AuthContext';
 import Icon from 'react-native-vector-icons/Feather';
 
 type Props = NativeStackScreenProps<TasksStackParamList, 'TasksList'>;
 
 export const TasksListScreen: React.FC<Props> = ({ navigation }) => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const subscriber = firebaseFirestore
-      .collection(COLLECTIONS.TASKS)
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(querySnapshot => {
-        const tasksList: Task[] = [];
-        querySnapshot?.forEach(documentSnapshot => {
-          tasksList.push({
-            ...documentSnapshot.data(),
-            id: documentSnapshot.id,
-          } as Task);
-        });
-        setTasks(tasksList);
-        setLoading(false);
-      }, error => {
-        console.error(error);
-        setLoading(false);
-      });
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-    return () => subscriber();
-  }, []);
+    setLoading(true);
+    const unsubscribe = getUserTasks(user.uid, (fetchedTasks) => {
+      setTasks(fetchedTasks);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [user]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Done': return theme.colors.success;
-      case 'In Progress': return theme.colors.info;
-      case 'Review': return theme.colors.warning;
+      case 'Done':
+        return theme.colors.success;
+      case 'In Progress':
+        return theme.colors.info;
+      case 'Review':
+        return theme.colors.warning;
       case 'Todo':
-      default: return theme.colors.textSecondary;
+      default:
+        return theme.colors.textSecondary;
     }
   };
 
-  const renderItem = ({ item }: { item: Task }) => {
+  const getStatusBackgroundColor = (status: string) => {
+    switch (status) {
+      case 'Done':
+        return 'rgba(16, 185, 129, 0.2)';
+      case 'In Progress':
+        return 'rgba(59, 130, 246, 0.2)';
+      case 'Review':
+        return 'rgba(245, 158, 11, 0.2)';
+      case 'Todo':
+      default:
+        return 'rgba(107, 114, 128, 0.2)';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'High':
+        return theme.colors.error;
+      case 'Medium':
+        return theme.colors.warning;
+      case 'Low':
+      default:
+        return theme.colors.success;
+    }
+  };
+
+  const renderItem = ({ item, index }: { item: Task; index: number }) => {
     const completedSubtasks = item.subtasks?.filter(st => st.completed).length || 0;
     const totalSubtasks = item.subtasks?.length || 0;
-    
+
     return (
-      <TouchableOpacity 
-        style={styles.taskCard}
-        onPress={() => console.log('Navigate to Task Details', item.id)}
-      >
-        <View style={styles.taskHeader}>
-          <Text variant="h3" weight="medium" style={styles.taskTitle}>{item.title}</Text>
-          <Icon name="more-vertical" size={20} color={theme.colors.textTertiary} />
-        </View>
-        <View style={styles.statusRow}>
-          <View style={[styles.statusBadge, { borderColor: getStatusColor(item.status) }]}>
-            <Text variant="caption" color={getStatusColor(item.status)}>{item.status}</Text>
-          </View>
-          <View style={styles.priorityBadge}>
-            <Text variant="caption" color={theme.colors.textSecondary}>{item.priority}</Text>
-          </View>
-        </View>
-        {totalSubtasks > 0 && (
-          <View style={styles.subtaskProgress}>
-            <Icon name="check-square" size={14} color={theme.colors.textTertiary} />
-            <Text variant="caption" color={theme.colors.textSecondary} style={styles.subtaskText}>
-              {completedSubtasks}/{totalSubtasks} Subtasks
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      <AnimatedListItem index={index} delay={50}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('TaskDetails', { taskId: item.id })}
+          style={styles.itemWrapper}
+        >
+          <GlassCard style={styles.taskCard}>
+            <View style={styles.taskHeader}>
+              <View style={styles.taskIconContainer}>
+                <View style={[styles.taskIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                  <Icon name="check-square" size={24} color={theme.colors.primary} />
+                </View>
+              </View>
+              <View style={styles.titleContainer}>
+                <Text variant="h3" weight="bold" numberOfLines={1}>
+                  {item.title}
+                </Text>
+                {item.description && (
+                  <Text
+                    variant="caption"
+                    color={theme.colors.textSecondary}
+                    numberOfLines={2}
+                    style={styles.taskDescription}
+                  >
+                    {item.description}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.headerActions}>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusBackgroundColor(item.status) },
+                  ]}
+                >
+                  <Text variant="caption" weight="bold" color={getStatusColor(item.status)} numberOfLines={1}>
+                    {item.status}
+                  </Text>
+                </View>
+                
+                <View style={styles.metaItem}>
+                  <Icon name="calendar" size={14} color={theme.colors.primary} />
+                  <Text variant="caption" color={theme.colors.textSecondary}>
+                    {new Date(item.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {totalSubtasks > 0 && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.subtaskProgress}>
+                  <Icon name="check-circle" size={14} color={theme.colors.success} />
+                  <Text
+                    variant="caption"
+                    color={theme.colors.textSecondary}
+                    style={styles.subtaskText}
+                  >
+                    {completedSubtasks}/{totalSubtasks} Completed
+                  </Text>
+                </View>
+              </>
+            )}
+          </GlassCard>
+        </TouchableOpacity>
+      </AnimatedListItem>
     );
   };
 
+  const activeTasks = tasks.filter(t => t.status !== 'Done').length;
+  const completedTasks = tasks.filter(t => t.status === 'Done').length;
+
   return (
-    <Container safeArea padding={false}>
+    <ScreenWrapper
+      safeArea
+      paddingHorizontal
+      showGradient
+      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
+    >
       <View style={styles.header}>
-        <Text variant="h1">My Tasks</Text>
-        <TouchableOpacity 
+        <View style={styles.headerTitleContainer}>
+          <Text variant="h1" style={styles.title}>My Tasks</Text>
+          <Text variant="body" color={theme.colors.textSecondary}>
+            {activeTasks} active · {completedTasks} completed
+          </Text>
+        </View>
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('CreateTask')}
+          activeOpacity={0.8}
         >
           <Icon name="plus" size={24} color={theme.colors.white} />
         </TouchableOpacity>
       </View>
-      
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -109,9 +192,10 @@ export const TasksListScreen: React.FC<Props> = ({ navigation }) => {
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
         />
       )}
-    </Container>
+    </ScreenWrapper>
   );
 };
 
@@ -120,15 +204,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: theme.spacing.lg,
+    marginTop: theme.spacing.xxl,
+    marginBottom: theme.spacing.xl,
+  },
+  headerTitleContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: theme.spacing.xs,
+  },
+  title: {
+    lineHeight: 36,
   },
   addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    marginBottom: theme.spacing.lg,
   },
   loadingContainer: {
     flex: 1,
@@ -136,50 +235,72 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: theme.spacing.lg,
-    paddingTop: 0,
+    paddingBottom: theme.spacing.xl,
+  },
+  itemWrapper: {
+    marginBottom: theme.spacing.md,
   },
   taskCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   taskHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.md,
   },
-  taskTitle: {
-    flex: 1,
-    marginRight: theme.spacing.sm,
+  taskIconContainer: {
+    marginTop: theme.spacing.xs,
   },
-  statusRow: {
-    flexDirection: 'row',
+  taskIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.radius.md,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  taskDescription: {
+    marginTop: theme.spacing.xs,
+  },
+  priorityRow: {
+    marginTop: theme.spacing.sm,
+    flexDirection: 'row',
   },
   statusBadge: {
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
-    borderWidth: 1,
-    marginRight: theme.spacing.sm,
+    minWidth: 70,
+    alignItems: 'center',
   },
   priorityBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  divider: {
+    height: 1,
     backgroundColor: theme.colors.border,
+    marginVertical: theme.spacing.md,
   },
   subtaskProgress: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   subtaskText: {
-    marginLeft: theme.spacing.xs,
+    flex: 1,
   },
 });

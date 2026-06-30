@@ -1,4 +1,4 @@
-package com.shreemaryda_mobile
+package com.shreemarydapms.app
 
 import android.os.Bundle
 import com.zoontek.rnbootsplash.RNBootSplash

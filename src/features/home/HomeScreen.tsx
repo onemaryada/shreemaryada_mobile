@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { Container, Text, Skeleton } from '../../shared/components';
+import { ScreenWrapper, Text, Skeleton } from '../../shared/components';
 import { theme } from '../../core/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { firebaseAuth, firebaseFirestore, COLLECTIONS } from '../../core/firebase';
@@ -19,40 +19,53 @@ export const HomeScreen = () => {
 
   const fetchData = async () => {
     try {
-      // 1. Fetch Active Projects
+      if (!user || user.isAnonymous) {
+        // Guest users see empty data
+        setActiveProjects(0);
+        setPendingTasks(0);
+        setCompletedTasks(0);
+        setRecentActivity([]);
+        setLoading(false);
+        return;
+      }
+
+      // 1. Fetch Active Projects for current user
       const projectsSnapshot = await firebaseFirestore
         .collection(COLLECTIONS.PROJECTS)
+        .where('userId', '==', user.uid)
         .where('status', '==', 'Active')
         .get();
       setActiveProjects(projectsSnapshot.size);
 
-      // 2. Fetch Tasks
+      // 2. Fetch Tasks for current user
       const tasksSnapshot = await firebaseFirestore
         .collection(COLLECTIONS.TASKS)
-        .orderBy('updatedAt', 'desc')
+        .where('userId', '==', user.uid)
         .get();
-      
+
       let pendingCount = 0;
       let completedCount = 0;
-      const activities: any[] = [];
+      const allTasks: any[] = [];
 
-      tasksSnapshot.forEach(doc => {
+      tasksSnapshot.forEach((doc: any) => {
         const data = doc.data() as Task;
+        allTasks.push({ id: doc.id, ...data });
         if (data.status === 'Done') {
           completedCount++;
         } else {
           pendingCount++;
         }
-
-        if (activities.length < 5) {
-          activities.push({
-            id: doc.id,
-            title: `Task "${data.title}" was updated to ${data.status}`,
-            time: data.updatedAt,
-            icon: data.status === 'Done' ? 'check-circle' : 'activity'
-          });
-        }
       });
+
+      // Sort by updatedAt descending
+      allTasks.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      const activities = allTasks.slice(0, 5).map(data => ({
+        id: data.id,
+        title: `Task "${data.title}" was updated to ${data.status}`,
+        time: data.updatedAt,
+        icon: data.status === 'Done' ? 'check-circle' : 'activity'
+      }));
 
       setPendingTasks(pendingCount);
       setCompletedTasks(completedCount);
@@ -155,15 +168,21 @@ export const HomeScreen = () => {
     );
   };
 
+  const displayName = user?.isAnonymous ? 'Guest' : (user?.displayName || 'User');
+  const headerMessage = user?.isAnonymous
+    ? 'Explore the app and create an account to get started.'
+    : "Here's what's happening today.";
+
   return (
-    <Container safeArea padding={false}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
+    <ScreenWrapper
+      safeArea
+      paddingHorizontal
+      scrollable={true}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
         <View style={styles.header}>
-          <Text variant="h2">Hello, {user?.displayName || 'User'} 👋</Text>
-          <Text variant="body" color={theme.colors.textSecondary}>Here's what's happening today.</Text>
+          <Text variant="h1" style={styles.title}>Hello, {displayName} 👋</Text>
+          <Text variant="body" color={theme.colors.textSecondary}>{headerMessage}</Text>
         </View>
 
         <Text variant="h3" style={styles.sectionTitle}>Overview</Text>
@@ -171,8 +190,7 @@ export const HomeScreen = () => {
 
         <Text variant="h3" style={styles.sectionTitle}>Recent Activity</Text>
         {renderRecentActivity()}
-      </ScrollView>
-    </Container>
+    </ScreenWrapper>
   );
 };
 
@@ -181,8 +199,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   header: {
+    marginTop: theme.spacing.xxl,
     marginBottom: theme.spacing.xl,
-    marginTop: theme.spacing.sm,
+  },
+  title: {
+    marginBottom: theme.spacing.sm,
   },
   sectionTitle: {
     marginBottom: theme.spacing.md,

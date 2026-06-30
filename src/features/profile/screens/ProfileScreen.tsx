@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../ProfileNavigator';
-import { Container, Text, Button } from '../../../shared/components';
+import { ScreenWrapper, Text, Button } from '../../../shared/components';
 import { theme } from '../../../core/theme';
 import { firebaseAuth, firebaseFirestore, COLLECTIONS } from '../../../core/firebase';
+import { getFirebaseErrorMessage } from '../../../core/firebase/errors';
 import Icon from 'react-native-vector-icons/Feather';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Profile'>;
@@ -12,39 +13,137 @@ type Props = NativeStackScreenProps<ProfileStackParamList, 'Profile'>;
 export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const isGuest = firebaseAuth.currentUser?.isAnonymous;
 
   useEffect(() => {
     const fetchProfile = async () => {
       const user = firebaseAuth.currentUser;
-      if (user) {
+      if (user && !user.isAnonymous) {
         const doc = await firebaseFirestore.collection(COLLECTIONS.USERS).doc(user.uid).get();
         if (doc.exists) {
           setProfileData(doc.data());
         }
+      } else if (user?.isAnonymous) {
+        setProfileData({ fullName: 'Guest User', email: 'guest@local' });
       }
       setLoading(false);
     };
 
     fetchProfile();
+
+    // Cleanup on unmount
+    return () => {
+      setProfileData(null);
+    };
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', () => {
+      // Clear profile data when leaving the screen
+      setProfileData(null);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   const handleLogout = async () => {
-    await firebaseAuth.signOut();
+    try {
+      const user = firebaseAuth.currentUser;
+      // If user is anonymous (guest), delete the account from Firebase Auth
+      if (user?.isAnonymous) {
+        await user.delete();
+        // user.delete() automatically signs out, so we're done
+        return;
+      }
+      // For regular users, just sign out
+      await firebaseAuth.signOut();
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      // Try to sign out anyway
+      try {
+        await firebaseAuth.signOut();
+      } catch (e) {
+        // Ignore if already signed out
+      }
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const user = firebaseAuth.currentUser;
+    if (!user) return;
+
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? All your data will be permanently removed. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            // Clear profile data immediately to prevent stale data from showing
+            setProfileData(null);
+            try {
+              // Delete user's projects and tasks
+              const projectsSnapshot = await firebaseFirestore
+                .collection(COLLECTIONS.PROJECTS)
+                .where('ownerId', '==', user.uid)
+                .get();
+
+              for (const doc of projectsSnapshot.docs) {
+                // Delete tasks related to this project
+                const tasksSnapshot = await firebaseFirestore
+                  .collection(COLLECTIONS.TASKS)
+                  .where('projectId', '==', doc.id)
+                  .get();
+
+                for (const taskDoc of tasksSnapshot.docs) {
+                  await taskDoc.ref.delete();
+                }
+
+                // Delete the project
+                await doc.ref.delete();
+              }
+
+              // Delete Firestore user document
+              await firebaseFirestore.collection(COLLECTIONS.USERS).doc(user.uid).delete();
+
+              // Small delay to ensure Firestore operations complete
+              await new Promise(resolve => setTimeout(resolve, 500));
+
+              // Delete Firebase Auth account
+              await user.delete();
+
+              // Explicitly sign out to ensure proper cleanup
+              await firebaseAuth.signOut();
+            } catch (error: any) {
+              Alert.alert('Error', getFirebaseErrorMessage(error));
+              setProfileData(null);
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
     return (
-      <Container center>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </Container>
+      <ScreenWrapper safeArea>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <Container safeArea padding={false}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <ScreenWrapper safeArea paddingHorizontal={false} scrollable={true} >
         <View style={styles.header}>
-          <Text variant="h1">Profile</Text>
+          <Text variant="h1" style={styles.title}>Profile</Text>
+          <Text variant="body" color={theme.colors.textSecondary}>Manage your account and settings</Text>
         </View>
 
         <View style={styles.avatarSection}>
@@ -83,10 +182,27 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <View style={styles.logoutSection}>
-          <Button title="Logout" variant="outline" onPress={handleLogout} />
+          <Button
+            title="Logout"
+            variant="outline"
+            onPress={handleLogout}
+            disabled={deleting}
+            fullWidth
+          />
+          {!isGuest && (
+            <View style={{ marginTop: theme.spacing.md }}>
+              <Button
+                title="Delete Account"
+                variant="outline"
+                onPress={handleDeleteAccount}
+                disabled={deleting}
+                loading={deleting}
+                fullWidth
+              />
+            </View>
+          )}
         </View>
-      </ScrollView>
-    </Container>
+    </ScreenWrapper>
   );
 };
 
@@ -102,10 +218,12 @@ const InfoRow = ({ icon, label, value }: { icon: string; label: string; value: s
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: theme.spacing.lg,
+    marginTop: theme.spacing.xxl,
+    marginBottom: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  title: {
+    marginBottom: theme.spacing.sm,
   },
   avatarSection: {
     alignItems: 'center',

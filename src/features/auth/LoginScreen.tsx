@@ -1,25 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert, BackHandler } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { AuthStackParamList } from '../../core/navigation/types';
-import { Container, Text, Input, Button } from '../../shared/components';
+import { ScreenWrapper, Text, Input, Button, PolicyModal } from '../../shared/components';
 import { theme } from '../../core/theme';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, LoginFormData } from './schemas';
 import auth from '@react-native-firebase/auth';
 import { firebaseAuth, firebaseFirestore, COLLECTIONS } from '../../core/firebase';
+import { getFirebaseErrorMessage } from '../../core/firebase/errors';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { PRIVACY_POLICY, TERMS_AND_CONDITIONS } from '../../core/policies/constants';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        BackHandler.exitApp();
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => subscription.remove();
+    }, [])
+  );
 
   useEffect(() => {
     // If the user is on the Login Screen but is already authenticated,
@@ -36,11 +59,35 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
+    setServerError('');
     try {
-      await firebaseAuth.signInWithEmailAndPassword(data.email, data.password);
+      const userCredential = await firebaseAuth.signInWithEmailAndPassword(data.email, data.password);
+      
+      // Wait for Firebase Auth token to propagate to Firestore before querying
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Check if profile exists
+      let profileExists = true;
+      try {
+        const userDoc = await firebaseFirestore.collection('users').doc(userCredential.user.uid).get();
+        profileExists = userDoc.exists;
+      } catch (err: any) {
+        if (err.code === 'firestore/permission-denied' || err.message?.includes('permission')) {
+          profileExists = false;
+        } else {
+          throw err;
+        }
+      }
+
+      if (!profileExists) {
+        navigation.replace('Signup', {
+          email: userCredential.user.email || undefined,
+          fullName: userCredential.user.displayName || undefined,
+        });
+      }
       // Navigation will be handled by the auth state listener in RootNavigator
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'An error occurred during login.');
+      setServerError(getFirebaseErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -48,10 +95,11 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const onGoogleButtonPress = async () => {
     setGoogleLoading(true);
+    setServerError('');
     try {
       // Check if device supports Google Play
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      
+
       // Force account picker by signing out first
       try {
         await GoogleSignin.signOut();
@@ -60,9 +108,14 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
       }
 
       // Get the users ID token
-      const { data } = await GoogleSignin.signIn();
-      const idToken = data?.idToken;
-      
+      const response = await GoogleSignin.signIn();
+
+      if (response.type === 'cancelled' || response.type === 'noSavedCredentialFound') {
+        return; // User cancelled the flow, exit gracefully
+      }
+
+      const idToken = response.data?.idToken;
+
       // Get the access token required by recent Firebase SDKs
       const { accessToken } = await GoogleSignin.getTokens();
 
@@ -74,27 +127,81 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
       const googleCredential = auth.GoogleAuthProvider.credential(idToken, accessToken);
 
       // Sign-in the user with the credential
-      await firebaseAuth.signInWithCredential(googleCredential);
-      
-      // The RootNavigator will take over, check profile, and if missing, remount this screen
-      // which will trigger the useEffect above to navigate to Signup.
+      const userCredential = await firebaseAuth.signInWithCredential(googleCredential);
+
+      // If this is a brand new user, we can immediately redirect them to Signup
+      if (userCredential.additionalUserInfo?.isNewUser) {
+        navigation.replace('Signup', {
+          email: userCredential.user.email || undefined,
+          fullName: userCredential.user.displayName || undefined,
+          googleIdToken: 'already_authenticated'
+        });
+        return;
+      }
+
+      // Wait for Firebase Auth token to propagate to Firestore before querying
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Check if profile exists
+      let profileExists = true;
+      try {
+        const userDoc = await firebaseFirestore.collection('users').doc(userCredential.user.uid).get();
+        profileExists = userDoc.exists;
+      } catch (err: any) {
+        if (err.code === 'firestore/permission-denied' || err.message?.includes('permission')) {
+          profileExists = false;
+        } else {
+          throw err;
+        }
+      }
+
+      if (!profileExists) {
+        navigation.replace('Signup', {
+          email: userCredential.user.email || undefined,
+          fullName: userCredential.user.displayName || undefined,
+          googleIdToken: 'already_authenticated'
+        });
+      }
     } catch (error: any) {
       console.log(error);
-      Alert.alert('Google Sign-In Failed', error.message || 'An error occurred.');
+      setServerError(getFirebaseErrorMessage(error));
     } finally {
       setGoogleLoading(false);
     }
   };
 
+  const onGuestLogin = async () => {
+    setServerError('');
+    try {
+      await firebaseAuth.signInAnonymously();
+      // Navigation will be handled by RootNavigator detecting anonymous user
+    } catch (error: any) {
+      setServerError(getFirebaseErrorMessage(error));
+    }
+  };
+
 
   return (
-    <Container safeArea padding center={false}>
+    <ScreenWrapper
+      keyboardAvoiding
+      scrollable
+      showGradient
+      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
+    >
       <View style={styles.header}>
         <Text variant="h1" style={styles.title}>Welcome Back</Text>
         <Text variant="body" color={theme.colors.textSecondary}>
-          Sign in to continue to Shree Maryada EMS
+          Sign in to continue to Shree Maryada PMS
         </Text>
       </View>
+
+      {!!serverError && (
+        <View style={styles.errorBanner}>
+          <Text variant="caption" color={theme.colors.error} align="center">
+            {serverError}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.form}>
         <Controller
@@ -110,6 +217,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
               onChangeText={onChange}
               value={value}
               error={errors.email?.message}
+              editable={!loading && !googleLoading}
             />
           )}
         />
@@ -121,11 +229,12 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
             <Input
               label="Password"
               placeholder="Enter your password"
-              secureTextEntry
+              isPassword
               onBlur={onBlur}
               onChangeText={onChange}
               value={value}
               error={errors.password?.message}
+              editable={!loading && !googleLoading}
             />
           )}
         />
@@ -137,7 +246,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
           onPress={handleSubmit(onSubmit)}
           loading={loading}
           fullWidth
-          style={styles.loginButton}
+          disabled={loading || googleLoading}
         />
 
         <View style={styles.dividerContainer}>
@@ -152,7 +261,16 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
           loading={googleLoading}
           variant="outline"
           fullWidth
-          style={styles.googleButton}
+          disabled={loading || googleLoading}
+        />
+
+        <Button
+          title="Continue as Guest"
+          onPress={onGuestLogin}
+          variant="secondary"
+          fullWidth
+          disabled={loading || googleLoading}
+          style={{ marginTop: theme.spacing.md }}
         />
 
         <View style={styles.signupContainer}>
@@ -166,7 +284,38 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
-    </Container>
+
+      {/* Policy Links Footer */}
+      <View style={styles.policyFooter}>
+        <TouchableOpacity onPress={() => setShowPrivacyPolicy(true)} style={styles.policyLink}>
+          <Text variant="caption" color={theme.colors.primary}>
+            Privacy Policy
+          </Text>
+        </TouchableOpacity>
+        <Text variant="caption" color={theme.colors.textSecondary}>
+          {' • '}
+        </Text>
+        <TouchableOpacity onPress={() => setShowTerms(true)} style={styles.policyLink}>
+          <Text variant="caption" color={theme.colors.primary}>
+            Terms & Conditions
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Policy Modals */}
+      <PolicyModal
+        visible={showPrivacyPolicy}
+        onClose={() => setShowPrivacyPolicy(false)}
+        title="Privacy Policy"
+        content={PRIVACY_POLICY}
+      />
+      <PolicyModal
+        visible={showTerms}
+        onClose={() => setShowTerms(false)}
+        title="Terms & Conditions"
+        content={TERMS_AND_CONDITIONS}
+      />
+    </ScreenWrapper>
   );
 };
 
@@ -175,25 +324,30 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xxl,
     marginBottom: theme.spacing.xl,
   },
+  errorBanner: {
+    backgroundColor: `${theme.colors.error}15`,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    marginBottom: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: `${theme.colors.error}50`,
+  },
   title: {
     marginBottom: theme.spacing.sm,
   },
   form: {
     width: '100%',
   },
-
-  loginButton: {
-    marginBottom: theme.spacing.xl,
-  },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical: theme.spacing.xl
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginVertical: theme.spacing.xl,
   },
   divider: {
     flex: 1,
@@ -203,7 +357,17 @@ const styles = StyleSheet.create({
   dividerText: {
     marginHorizontal: theme.spacing.md,
   },
-  googleButton: {
-    marginBottom: theme.spacing.xl,
+  policyFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    marginTop: theme.spacing.lg,
+  },
+  policyLink: {
+    paddingHorizontal: theme.spacing.xs,
   },
 });

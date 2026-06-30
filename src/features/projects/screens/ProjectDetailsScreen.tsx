@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProjectsStackParamList } from '../ProjectsNavigator';
-import { Container, Text } from '../../../shared/components';
+import { ScreenWrapper, Text, Button, GlassCard } from '../../../shared/components';
 import { theme } from '../../../core/theme';
+import { gradients } from '../../../core/theme/colors';
 import { firebaseFirestore, COLLECTIONS } from '../../../core/firebase';
 import { Project } from '../services/projectsService';
 import Icon from 'react-native-vector-icons/Feather';
-import { getBadgeColor } from '../../../core/utils/colors';
 
 type Props = NativeStackScreenProps<ProjectsStackParamList, 'ProjectDetails'>;
 
@@ -15,6 +15,7 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
   const { projectId } = route.params;
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const subscriber = firebaseFirestore
@@ -35,6 +36,19 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
     return () => subscriber();
   }, [projectId]);
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return theme.colors.success;
+      case 'Completed':
+        return theme.colors.info;
+      case 'On Hold':
+        return theme.colors.warning;
+      default:
+        return theme.colors.textSecondary;
+    }
+  };
+
   const handleOpenUrl = async (url: string) => {
     try {
       if (await Linking.canOpenURL(url)) {
@@ -45,121 +59,299 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
     }
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Project',
+      `Are you sure you want to delete "${project?.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await firebaseFirestore
+                .collection(COLLECTIONS.PROJECTS)
+                .doc(projectId)
+                .delete();
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete project');
+            } finally {
+              setDeleting(false);
+            }
+          },
+          style: 'destructive',
+        },
+      ],
+    );
+  };
+
   if (loading) {
     return (
-      <Container center>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </Container>
+      <ScreenWrapper safeArea gradientColors={gradients.bgLight as any}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </ScreenWrapper>
     );
   }
 
   if (!project) {
     return (
-      <Container center>
-        <Text variant="body" color={theme.colors.textSecondary}>Project not found</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: theme.spacing.md }}>
-          <Text variant="body" color={theme.colors.primary}>Go Back</Text>
-        </TouchableOpacity>
-      </Container>
+      <ScreenWrapper safeArea gradientColors={gradients.bgLight as any}>
+        <View style={styles.loadingContainer}>
+          <Text variant="body" color={theme.colors.textSecondary}>
+            Project not found
+          </Text>
+          <Button
+            title="Go Back"
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+          />
+        </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <Container safeArea padding={false}>
-      <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <Text variant="h1">{project.name}</Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-          <Icon name="x" size={24} color={theme.colors.textSecondary} />
+    <ScreenWrapper
+      safeArea
+      paddingHorizontal
+      showGradient
+      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
+    >
+      <View style={styles.headerContainer}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Icon name="arrow-left" size={24} color={theme.colors.text} />
         </TouchableOpacity>
+
+        <View style={styles.header}>
+          <Text variant="h1" style={styles.title}>{project.name}</Text>
+        </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        {/* Status Section */}
+        <GlassCard style={styles.section}>
+          <View style={styles.statusPriorityRow}>
+            <View style={styles.statusContainer}>
+              <Text
+                variant="caption"
+                weight="bold"
+                color={theme.colors.textSecondary}
+                style={styles.label}
+              >
+                STATUS
+              </Text>
+              <View
+                style={[
+                  styles.statusPill,
+                  { backgroundColor: getStatusColor(project.status) + '20' },
+                ]}
+              >
+                <Icon
+                  name={
+                    project.status === 'Completed'
+                      ? 'check-circle'
+                      : project.status === 'Active'
+                      ? 'play-circle'
+                      : 'pause-circle'
+                  }
+                  size={16}
+                  color={getStatusColor(project.status)}
+                />
+                <Text
+                  variant="caption"
+                  weight="bold"
+                  color={getStatusColor(project.status)}
+                  style={styles.statusText}
+                >
+                  {project.status}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </GlassCard>
+
         {/* Description Section */}
-        <View style={styles.section}>
-          <Text variant="caption" weight="bold" color={theme.colors.textSecondary} style={styles.sectionLabel}>
+        <GlassCard style={styles.section}>
+          <Text
+            variant="caption"
+            weight="bold"
+            color={theme.colors.textSecondary}
+            style={styles.sectionLabel}
+          >
             DESCRIPTION
           </Text>
-          <Text variant="body" color={theme.colors.textPrimary} style={styles.descriptionText}>
+          <Text variant="body" color={theme.colors.text} style={styles.descriptionText}>
             {project.description}
           </Text>
-        </View>
-
-        <View style={styles.divider} />
+        </GlassCard>
 
         {/* Technologies Section */}
         {project.technologies && project.technologies.length > 0 && (
-          <View style={styles.section}>
-            <Text variant="caption" weight="bold" color={theme.colors.textSecondary} style={styles.sectionLabel}>
+          <GlassCard style={styles.section}>
+            <Text
+              variant="caption"
+              weight="bold"
+              color={theme.colors.textSecondary}
+              style={styles.sectionLabel}
+            >
               TECHNOLOGIES
             </Text>
             <View style={styles.techContainer}>
-              {project.technologies.map((tech) => (
-                <View 
-                  key={tech} 
-                  style={[styles.techBadge, { backgroundColor: getBadgeColor(tech) }]}
+              {project.technologies.map(tech => (
+                <GlassCard
+                  key={tech}
+                  style={styles.techBadge}
                 >
-                  <Text variant="caption" weight="bold" color={theme.colors.white}>{tech}</Text>
-                </View>
+                  <Text variant="caption" weight="bold" color={theme.colors.primary}>
+                    {tech}
+                  </Text>
+                </GlassCard>
               ))}
             </View>
-          </View>
+          </GlassCard>
         )}
 
         {/* Repositories Section */}
         {project.repositories && project.repositories.length > 0 && (
-          <View style={styles.section}>
-            <Text variant="caption" weight="bold" color={theme.colors.textSecondary} style={styles.sectionLabel}>
+          <GlassCard style={styles.section}>
+            <Text
+              variant="caption"
+              weight="bold"
+              color={theme.colors.textSecondary}
+              style={styles.sectionLabel}
+            >
               REPOSITORIES
             </Text>
             {project.repositories.map((repo, index) => (
-              <View key={index} style={styles.repoCard}>
-                <View style={styles.repoTypeBadge}>
-                  <Text variant="caption" weight="bold" color={theme.colors.textPrimary}>{repo.type}</Text>
+              <GlassCard
+                key={index}
+                variant="light"
+                intensity="high"
+                style={styles.repoCard}
+              >
+                <View style={styles.repoHeader}>
+                  <View style={styles.repoTitleContainer}>
+                    <Text variant="caption" weight="bold" color={theme.colors.text}>
+                      {repo.title || 'Repo ' + (index + 1)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.openButton}
+                    onPress={() => handleOpenUrl(repo.url)}
+                  >
+                    <Icon name="external-link" size={16} color={theme.colors.primary} />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.repoLink} onPress={() => handleOpenUrl(repo.url)}>
-                  <Icon name="github" size={16} color={theme.colors.primary} />
-                  <Text 
-                    variant="caption" 
-                    color={theme.colors.primary} 
+                <TouchableOpacity
+                  style={styles.repoLink}
+                  onPress={() => handleOpenUrl(repo.url)}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="link" size={14} color={theme.colors.primary} />
+                  <Text
+                    variant="caption"
+                    color={theme.colors.primary}
                     style={styles.repoUrlText}
                     numberOfLines={1}
                   >
                     {repo.url}
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </GlassCard>
             ))}
-          </View>
+          </GlassCard>
         )}
 
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <Button
+            title="Edit Project"
+            fullWidth
+            onPress={() => navigation.navigate('CreateProject', { project })}
+          />
+          <Button
+            title={deleting ? 'Deleting...' : 'Delete Project'}
+            variant="outline"
+            fullWidth
+            loading={deleting}
+            onPress={handleDelete}
+            style={styles.deleteButton}
+          />
+        </View>
       </ScrollView>
-    </Container>
+    </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  header: {
+  headerContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: theme.spacing.lg,
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.xxl,
+    marginBottom: theme.spacing.xl,
   },
-  titleContainer: {
+  backButton: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
     flex: 1,
-    paddingRight: theme.spacing.md,
   },
-  closeButton: {
-    padding: theme.spacing.xs,
+  title: {
+    marginBottom: theme.spacing.sm,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backBtn: {
+    marginTop: theme.spacing.lg,
   },
   content: {
-    padding: theme.spacing.lg,
-    paddingTop: 0,
+    paddingBottom: theme.spacing.xl,
   },
   section: {
-    marginBottom: theme.spacing.xl,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  statusPriorityRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  statusContainer: {
+    flex: 1,
+  },
+  label: {
+    marginBottom: theme.spacing.sm,
+    letterSpacing: 0.5,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.full,
+    gap: theme.spacing.xs,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    marginLeft: theme.spacing.xs,
   },
   sectionLabel: {
     marginBottom: theme.spacing.md,
@@ -168,50 +360,44 @@ const styles = StyleSheet.create({
   descriptionText: {
     lineHeight: 24,
   },
-  divider: {
-    height: 1,
-    backgroundColor: theme.colors.border,
-    marginBottom: theme.spacing.xl,
-  },
   techContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: theme.spacing.sm,
   },
   techBadge: {
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
-    marginRight: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
   },
   repoCard: {
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  repoHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
   },
-  repoTypeBadge: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginRight: theme.spacing.md,
-    minWidth: 70,
-    alignItems: 'center',
+  repoTitleContainer: {
+    flex: 1,
+  },
+  openButton: {
+    padding: theme.spacing.xs,
   },
   repoLink: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: theme.spacing.xs,
   },
   repoUrlText: {
-    marginLeft: theme.spacing.xs,
     flex: 1,
+  },
+  actionButtons: {
+    gap: theme.spacing.md,
+  },
+  deleteButton: {
+    marginTop: theme.spacing.sm,
   },
 });

@@ -2,86 +2,131 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProjectsStackParamList } from '../ProjectsNavigator';
-import { Container, Text, Button, EmptyState } from '../../../shared/components';
+import { ScreenWrapper, Text, Button, EmptyState, GlassCard, AnimatedListItem } from '../../../shared/components';
 import { theme } from '../../../core/theme';
-import { firebaseFirestore, COLLECTIONS } from '../../../core/firebase';
-import { Project } from '../services/projectsService';
+import { getUserProjects, Project } from '../services/projectsService';
+import { useAuth } from '../../../core/auth/AuthContext';
 import Icon from 'react-native-vector-icons/Feather';
 
 type Props = NativeStackScreenProps<ProjectsStackParamList, 'ProjectsList'>;
 
 export const ProjectsListScreen: React.FC<Props> = ({ navigation }) => {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const subscriber = firebaseFirestore
-      .collection(COLLECTIONS.PROJECTS)
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(querySnapshot => {
-        const projectsList: Project[] = [];
-        querySnapshot?.forEach(documentSnapshot => {
-          projectsList.push({
-            ...documentSnapshot.data(),
-            id: documentSnapshot.id,
-          } as Project);
-        });
-        setProjects(projectsList);
-        setLoading(false);
-      }, error => {
-        console.error(error);
-        setLoading(false);
-      });
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-    return () => subscriber();
-  }, []);
+    setLoading(true);
+    const unsubscribe = getUserProjects(user.uid, (fetchedProjects) => {
+      setProjects(fetchedProjects);
+      setLoading(false);
+    });
 
-  const renderItem = ({ item }: { item: Project }) => (
-    <TouchableOpacity 
-      style={styles.projectCard}
-      onPress={() => navigation.navigate('ProjectDetails', { projectId: item.id })}
-    >
-      <View style={styles.projectHeader}>
-        <Text variant="h3" weight="bold" style={styles.projectName}>{item.name}</Text>
-        <View style={[
-          styles.statusBadge, 
-          { backgroundColor: item.status === 'Active' ? theme.colors.successLight : theme.colors.border }
-        ]}>
-          <Text variant="caption" color={item.status === 'Active' ? theme.colors.success : theme.colors.textSecondary}>
-            {item.status}
-          </Text>
-        </View>
-      </View>
-      {item.description && (
-        <Text variant="body" color={theme.colors.textSecondary} style={styles.description} numberOfLines={2}>
-          {item.description}
-        </Text>
-      )}
-      <View style={styles.footer}>
-        {item.technologies && item.technologies.length > 0 && (
-          <View style={styles.techContainer}>
-            <Icon name="code" size={16} color={theme.colors.textTertiary} />
-            <Text variant="caption" color={theme.colors.textSecondary} style={styles.techText}>
-              {item.technologies.join(', ')}
-            </Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+    return unsubscribe;
+  }, [user]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return { bg: theme.colors.success + '20', text: theme.colors.success };
+      case 'Completed':
+        return { bg: theme.colors.info + '20', text: theme.colors.info };
+      case 'On Hold':
+        return { bg: theme.colors.warning + '20', text: theme.colors.warning };
+      default:
+        return { bg: theme.colors.textTertiary + '20', text: theme.colors.textSecondary };
+    }
+  };
+
+  const renderItem = ({ item, index }: { item: Project; index: number }) => {
+    const statusColor = getStatusColor(item.status);
+
+    return (
+      <AnimatedListItem index={index} delay={50}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('ProjectDetails', { projectId: item.id })}
+          style={styles.itemWrapper}
+        >
+          <GlassCard style={styles.projectCard}>
+            <View style={styles.projectHeader}>
+              <View style={styles.projectIconContainer}>
+                <View style={[styles.projectIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                  <Icon name="folder" size={24} color={theme.colors.primary} />
+                </View>
+              </View>
+              <View style={styles.projectTitleContainer}>
+                <Text variant="h3" weight="bold" numberOfLines={1}>
+                  {item.name}
+                </Text>
+                {item.description && (
+                  <Text
+                    variant="caption"
+                    color={theme.colors.textSecondary}
+                    numberOfLines={2}
+                    style={styles.description}
+                  >
+                    {item.description}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.headerActions}>
+                <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
+                  <Text
+                    variant="caption"
+                    weight="bold"
+                    color={statusColor.text}
+                    numberOfLines={1}
+                  >
+                    {item.status}
+                  </Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <Icon name="calendar" size={14} color={theme.colors.primary} />
+                  <Text variant="caption" color={theme.colors.textSecondary}>
+                    {new Date(item.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </GlassCard>
+        </TouchableOpacity>
+      </AnimatedListItem>
+    );
+  };
 
   return (
-    <Container safeArea padding={false}>
+    <ScreenWrapper
+      safeArea
+      paddingHorizontal
+      showGradient
+      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
+    >
       <View style={styles.header}>
-        <Text variant="h1">Projects</Text>
-        <TouchableOpacity 
+        <View style={styles.headerTitleContainer}>
+          <Text variant="h1" style={styles.title}>Projects</Text>
+          <Text variant="body" color={theme.colors.textSecondary}>
+            {projects.length} project{projects.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('CreateProject')}
+          activeOpacity={0.8}
         >
           <Icon name="plus" size={24} color={theme.colors.white} />
         </TouchableOpacity>
       </View>
-      
+
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -89,7 +134,7 @@ export const ProjectsListScreen: React.FC<Props> = ({ navigation }) => {
       ) : projects.length === 0 ? (
         <EmptyState
           title="No Projects Yet"
-          description="Create your first project to get started."
+          description="Create your first project to get started managing tasks."
           actionTitle="Create Project"
           onAction={() => navigation.navigate('CreateProject')}
         />
@@ -100,9 +145,10 @@ export const ProjectsListScreen: React.FC<Props> = ({ navigation }) => {
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
         />
       )}
-    </Container>
+    </ScreenWrapper>
   );
 };
 
@@ -111,15 +157,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: theme.spacing.lg,
+    marginTop: theme.spacing.xxl,
+    marginBottom: theme.spacing.xl,
+  },
+  headerTitleContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: theme.spacing.xs,
+  },
+  title: {
+    lineHeight: 36,
   },
   addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    marginBottom: theme.spacing.lg,
   },
   loadingContainer: {
     flex: 1,
@@ -127,45 +188,72 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: theme.spacing.lg,
-    paddingTop: 0,
+    paddingBottom: theme.spacing.xl,
+  },
+  itemWrapper: {
+    marginBottom: theme.spacing.md,
   },
   projectCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   projectHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: theme.spacing.xs,
+    gap: theme.spacing.md,
   },
-  projectName: {
+  projectIconContainer: {
+    marginTop: theme.spacing.xs,
+  },
+  projectIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  projectTitleContainer: {
     flex: 1,
-    marginRight: theme.spacing.sm,
+  },
+  headerActions: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   statusBadge: {
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  plusButton: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   description: {
-    marginBottom: theme.spacing.md,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginTop: theme.spacing.xs,
   },
-  techContainer: {
+  divider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: theme.spacing.md,
+  },
+  metaContainer: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    flexWrap: 'wrap',
+  },
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: theme.spacing.xs,
   },
-  techText: {
-    marginLeft: theme.spacing.xs,
+  metaText: {
+    flex: 1,
+    maxWidth: 120,
   },
 });

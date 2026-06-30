@@ -5,9 +5,11 @@ import { CreateProjectScreen } from './screens/CreateProjectScreen';
 
 import { ProjectDetailsScreen } from './screens/ProjectDetailsScreen';
 
+import { Project } from './services/projectsService';
+
 export type ProjectsStackParamList = {
   ProjectsList: undefined;
-  CreateProject: undefined;
+  CreateProject: { project?: Project } | undefined;
   ProjectDetails: { projectId: string };
 };
 

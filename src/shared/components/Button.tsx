@@ -22,10 +22,9 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const getBackgroundColor = () => {
-    if (disabled) return theme.colors.border;
     switch (variant) {
       case 'primary': return theme.colors.primary;
-      case 'secondary': return theme.colors.surfaceDark;
+      case 'secondary': return theme.colors.surface;
       case 'outline': return 'transparent';
       case 'ghost': return 'transparent';
       default: return theme.colors.primary;
@@ -33,10 +32,9 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const getTextColor = () => {
-    if (disabled) return theme.colors.textSecondary;
     switch (variant) {
       case 'primary': return theme.colors.white;
-      case 'secondary': return theme.colors.white;
+      case 'secondary': return theme.colors.text;
       case 'outline': return theme.colors.primary;
       case 'ghost': return theme.colors.primary;
       default: return theme.colors.white;
@@ -44,7 +42,6 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const getBorderColor = () => {
-    if (disabled) return theme.colors.border;
     if (variant === 'outline') return theme.colors.primary;
     return 'transparent';
   };
@@ -58,9 +55,11 @@ export const Button: React.FC<ButtonProps> = ({
     }
   };
 
+  const borderWidth = variant === 'outline' ? 1 : 0;
+
   return (
     <TouchableOpacity
-      activeOpacity={0.8}
+      activeOpacity={0.7}
       disabled={disabled || loading}
       style={[
         styles.container,
@@ -68,8 +67,9 @@ export const Button: React.FC<ButtonProps> = ({
         {
           backgroundColor: getBackgroundColor(),
           borderColor: getBorderColor(),
-          borderWidth: variant === 'outline' ? 1 : 0,
+          borderWidth,
           width: fullWidth ? '100%' : 'auto',
+          opacity: disabled || loading ? 0.6 : 1,
         },
         style as ViewStyle,
       ]}

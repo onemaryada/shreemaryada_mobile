@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:270903898759:android:aa48b1b78779c90d647e22",
+        "mobilesdk_app_id": "1:270903898759:android:b7b3f188d8bd5d04647e22",
         "android_client_info": {
-          "package_name": "com.shreemaryada.ems"
+          "package_name": "com.shreemarydapms.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "270903898759-jgq4j5it1bmbb4avmod5oigs3u8ejstq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCrUL3q6H5f26hv_DFPclXU0zMKoj3lpRg"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270903898759-jgq4j5it1bmbb4avmod5oigs3u8ejstq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "270903898759-n4f1casdo5poqikhbdack6mk1j69cuhs.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.shreemaryada.ems"
+              }
+            }
+          ]
         }
       }
     }
