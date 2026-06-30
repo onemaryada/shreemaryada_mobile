@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   errorDetails: {
     width: '100%',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: theme.colors.errorLight,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.xl,

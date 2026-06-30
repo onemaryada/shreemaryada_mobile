@@ -17,12 +17,14 @@ interface ProjectSelectorProps {
   selectedProjectId: string;
   onSelectProject: (projectId: string, projectName: string) => void;
   userId: string;
+  showError?: boolean;
 }
 
 export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   selectedProjectId,
   onSelectProject,
   userId,
+  showError = false,
 }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -57,7 +59,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         <TouchableOpacity
           style={[
             styles.selectorButton,
-            !selectedProject && styles.selectorButtonError,
+            showError && !selectedProject && styles.selectorButtonError,
           ]}
           onPress={() => setIsModalVisible(true)}
           activeOpacity={0.7}
@@ -66,13 +68,25 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             <Icon
               name={selectedProject ? 'folder' : 'plus-circle'}
               size={20}
-              color={selectedProject ? theme.colors.primary : theme.colors.error}
+              color={
+                selectedProject
+                  ? theme.colors.primary
+                  : showError
+                  ? theme.colors.error
+                  : theme.colors.textSecondary
+              }
             />
             <View style={styles.selectedTextContainer}>
               <Text
                 variant="body"
                 weight={selectedProject ? 'medium' : 'regular'}
-                color={selectedProject ? theme.colors.text : theme.colors.error}
+                color={
+                  selectedProject
+                    ? theme.colors.text
+                    : showError
+                    ? theme.colors.error
+                    : theme.colors.textSecondary
+                }
               >
                 {selectedProject ? selectedProject.name : 'Select a project'}
               </Text>
@@ -89,7 +103,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             color={theme.colors.textSecondary}
           />
         </TouchableOpacity>
-        {!selectedProject && (
+        {showError && !selectedProject && (
           <Text variant="caption" color={theme.colors.error} style={styles.errorText}>
             Please select a project to create a task
           </Text>
@@ -232,7 +246,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.surface,
     justifyContent: 'flex-end',
   },
   modalContent: {

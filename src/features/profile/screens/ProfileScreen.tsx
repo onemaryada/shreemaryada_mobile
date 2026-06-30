@@ -141,67 +141,67 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ScreenWrapper safeArea paddingHorizontal={false} scrollable={true} >
-        <View style={styles.header}>
-          <Text variant="h1" style={styles.title}>Profile</Text>
-          <Text variant="body" color={theme.colors.textSecondary}>Manage your account and settings</Text>
-        </View>
+      <View style={styles.header}>
+        <Text variant="h2" style={styles.title}>Profile</Text>
+        <Text variant="body" color={theme.colors.textSecondary}>Manage your account and settings</Text>
+      </View>
 
-        <View style={styles.avatarSection}>
-          <View style={styles.avatarPlaceholder}>
-            {profileData?.photoURL ? (
-              <Image source={{ uri: profileData.photoURL }} style={styles.avatarImage} />
-            ) : (
-              <Text variant="h1" color={theme.colors.white}>
-                {profileData?.fullName?.charAt(0) || 'U'}
-              </Text>
-            )}
-          </View>
-          <Text variant="h2" style={styles.name}>{profileData?.fullName || 'User Name'}</Text>
-          <Text variant="body" color={theme.colors.textSecondary}>{profileData?.designation || 'Designation'}</Text>
-        </View>
-
-        <View style={styles.infoSection}>
-          <Text variant="h3" style={styles.sectionTitle}>Personal Information</Text>
-          <InfoRow icon="mail" label="Email" value={profileData?.email || firebaseAuth.currentUser?.email} />
-          <InfoRow icon="phone" label="Phone" value={profileData?.phone || 'Not set'} />
-          <InfoRow icon="map-pin" label="Address" value={profileData?.address || 'Not set'} />
-          <InfoRow icon="calendar" label="Date of Birth" value={profileData?.dob || 'Not set'} />
-        </View>
-
-        <View style={styles.infoSection}>
-          <Text variant="h3" style={styles.sectionTitle}>Employment Details</Text>
-          <InfoRow icon="briefcase" label="Employee ID" value={profileData?.employeeId || 'Not set'} />
-          <InfoRow icon="users" label="Department" value={profileData?.department || 'Not set'} />
-          <InfoRow icon="calendar" label="Joining Date" value={profileData?.joiningDate || 'Not set'} />
-        </View>
-
-        <View style={styles.infoSection}>
-          <Text variant="h3" style={styles.sectionTitle}>Banking Details</Text>
-          <InfoRow icon="credit-card" label="Bank Name" value={profileData?.bankName || 'Not set'} />
-          <InfoRow icon="hash" label="Account Number" value={profileData?.accountNumber ? `••••${profileData.accountNumber.slice(-4)}` : 'Not set'} />
-        </View>
-
-        <View style={styles.logoutSection}>
-          <Button
-            title="Logout"
-            variant="outline"
-            onPress={handleLogout}
-            disabled={deleting}
-            fullWidth
-          />
-          {!isGuest && (
-            <View style={{ marginTop: theme.spacing.md }}>
-              <Button
-                title="Delete Account"
-                variant="outline"
-                onPress={handleDeleteAccount}
-                disabled={deleting}
-                loading={deleting}
-                fullWidth
-              />
-            </View>
+      <View style={styles.avatarSection}>
+        <View style={styles.avatarPlaceholder}>
+          {profileData?.photoURL ? (
+            <Image source={{ uri: profileData.photoURL }} style={styles.avatarImage} />
+          ) : (
+            <Text variant="h1" color={theme.colors.white}>
+              {profileData?.fullName?.charAt(0) || 'U'}
+            </Text>
           )}
         </View>
+        <Text variant="h2" style={styles.name}>{profileData?.fullName || 'User Name'}</Text>
+        <Text variant="body" color={theme.colors.textSecondary}>{profileData?.designation || 'Designation'}</Text>
+      </View>
+
+      <View style={styles.infoSection}>
+        <Text variant="h3" style={styles.sectionTitle}>Personal Information</Text>
+        <InfoRow icon="mail" label="Email" value={profileData?.email || firebaseAuth.currentUser?.email} />
+        <InfoRow icon="phone" label="Phone" value={profileData?.phone || 'Not set'} />
+        <InfoRow icon="map-pin" label="Address" value={profileData?.address || 'Not set'} />
+        <InfoRow icon="calendar" label="Date of Birth" value={profileData?.dob || 'Not set'} />
+      </View>
+
+      <View style={styles.infoSection}>
+        <Text variant="h3" style={styles.sectionTitle}>Employment Details</Text>
+        <InfoRow icon="briefcase" label="Employee ID" value={profileData?.employeeId || 'Not set'} />
+        <InfoRow icon="users" label="Department" value={profileData?.department || 'Not set'} />
+        <InfoRow icon="calendar" label="Joining Date" value={profileData?.joiningDate || 'Not set'} />
+      </View>
+
+      <View style={styles.infoSection}>
+        <Text variant="h3" style={styles.sectionTitle}>Banking Details</Text>
+        <InfoRow icon="credit-card" label="Bank Name" value={profileData?.bankName || 'Not set'} />
+        <InfoRow icon="hash" label="Account Number" value={profileData?.accountNumber ? `••••${profileData.accountNumber.slice(-4)}` : 'Not set'} />
+      </View>
+
+      <View style={styles.logoutSection}>
+        <Button
+          title="Logout"
+          variant="outline"
+          onPress={handleLogout}
+          disabled={deleting}
+          fullWidth
+        />
+        {!isGuest && (
+          <View style={{ marginTop: theme.spacing.md }}>
+            <Button
+              title="Delete Account"
+              variant="outline"
+              onPress={handleDeleteAccount}
+              disabled={deleting}
+              loading={deleting}
+              fullWidth
+            />
+          </View>
+        )}
+      </View>
     </ScreenWrapper>
   );
 };
@@ -223,11 +223,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
   },
   title: {
-    marginBottom: theme.spacing.sm,
+    // marginBottom: theme.spacing.sm,
   },
   avatarSection: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.xl,
+    paddingBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -269,6 +270,6 @@ const styles = StyleSheet.create({
   },
   logoutSection: {
     padding: theme.spacing.xl,
-    paddingBottom: theme.spacing.xxxl,
+    // paddingBottom: theme.spacing.xxxl,
   },
 });

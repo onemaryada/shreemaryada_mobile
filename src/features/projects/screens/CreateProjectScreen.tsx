@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProjectsStackParamList } from '../ProjectsNavigator';
 import { ScreenWrapper, Text, Input, Button, GlassCard } from '../../../shared/components';
 import { theme } from '../../../core/theme';
+import { getProjectStatusBadgeColor } from '../../../core/theme/badgeHelper';
 import { createProject, updateProject, ProjectRepository } from '../services/projectsService';
 import { useAuth } from '../../../core/auth/AuthContext';
 import Icon from 'react-native-vector-icons/Feather';
@@ -84,8 +85,6 @@ export const CreateProjectScreen: React.FC<Props> = ({ route, navigation }) => {
       safeArea
       paddingHorizontal
       scrollable={false}
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       <View style={styles.headerContainer}>
         <TouchableOpacity
@@ -97,104 +96,111 @@ export const CreateProjectScreen: React.FC<Props> = ({ route, navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Text variant="h1" style={styles.title}>{isEditing ? 'Edit Project' : 'New Project'}</Text>
-          <Text variant="body" color={theme.colors.textSecondary}>
+          <Text variant="h2" style={styles.title}>{isEditing ? 'Edit Project' : 'New Project'}</Text>
+          {/* <Text variant="body" color={theme.colors.textSecondary}>
             {isEditing ? 'Update project details' : 'Create a new project to organize your tasks'}
-          </Text>
+          </Text> */}
         </View>
       </View>
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
-        <Input
-          label="Project Name *"
-          placeholder="e.g. Website Redesign"
-          value={name}
-          onChangeText={setName}
-        />
+          <Input
+            label="Project Name *"
+            placeholder="e.g. Website Redesign"
+            value={name}
+            onChangeText={setName}
+          />
 
-        <Input
-          label="Description *"
-          placeholder="What is this project about?"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={4}
-          style={styles.textArea}
-        />
+          <Input
+            label="Description *"
+            placeholder="What is this project about?"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={4}
+            style={styles.textArea}
+          />
 
-        <View style={styles.section}>
-          <Text variant="h3" weight="bold" style={styles.sectionTitle}>
-            Project Status
-          </Text>
-          <View style={styles.statusContainer}>
-            {(['Active', 'Completed', 'On Hold'] as const).map(s => (
+          <View style={styles.section}>
+            <Text variant="h3" weight="bold" style={styles.sectionTitle}>
+              Project Status
+            </Text>
+            <View style={styles.statusContainer}>
+              {(['Active', 'Completed', 'On Hold'] as const).map(s => {
+                const badgeColor = getProjectStatusBadgeColor(s);
+                const isSelected = status === s;
+                return (
+                  <TouchableOpacity
+                    key={s}
+                    style={[
+                      styles.statusButton,
+                      isSelected && { backgroundColor: badgeColor.bg, borderColor: badgeColor.text },
+                    ]}
+                    onPress={() => setStatus(s)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      variant="caption"
+                      weight={isSelected ? 'bold' : 'medium'}
+                      color={isSelected ? badgeColor.text : theme.colors.textSecondary}
+                    >
+                      {s}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text variant="h3" weight="bold" style={styles.sectionTitle}>
+              Technologies
+            </Text>
+            <View style={styles.techInputRow}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  ref={techInputRef}
+                  placeholder="Add technology (e.g. React Native)"
+                  value={techInput}
+                  onChangeText={setTechInput}
+                  onSubmitEditing={handleAddTechnology}
+                  containerStyle={{ marginBottom: 0 }}
+                />
+              </View>
               <TouchableOpacity
-                key={s}
-                style={[styles.statusButton, status === s && styles.statusButtonActive]}
-                onPress={() => setStatus(s)}
+                style={styles.addButton}
+                onPress={handleAddTechnology}
                 activeOpacity={0.7}
               >
-                <Text
-                  variant="caption"
-                  weight={status === s ? 'bold' : 'medium'}
-                  color={status === s ? theme.colors.white : theme.colors.textSecondary}
-                >
-                  {s}
-                </Text>
+                <Icon name="plus" size={20} color={theme.colors.white} />
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="h3" weight="bold" style={styles.sectionTitle}>
-            Technologies
-          </Text>
-          <View style={styles.techInputRow}>
-            <View style={{ flex: 1 }}>
-              <Input
-                ref={techInputRef}
-                placeholder="Add technology (e.g. React Native)"
-                value={techInput}
-                onChangeText={setTechInput}
-                onSubmitEditing={handleAddTechnology}
-                containerStyle={{ marginBottom: 0 }}
-              />
             </View>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleAddTechnology}
-              activeOpacity={0.7}
-            >
-              <Icon name="plus" size={20} color={theme.colors.white} />
-            </TouchableOpacity>
+            <View style={styles.chipContainer}>
+              {technologies.map(tech => (
+                <GlassCard key={tech} style={styles.chip}>
+                  <Text variant="caption" color={theme.colors.primary} weight="medium">
+                    {tech}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleRemoveTechnology(tech)}
+                    style={styles.chipRemove}
+                  >
+                    <Icon name="x" size={14} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                </GlassCard>
+              ))}
+            </View>
           </View>
-          <View style={styles.chipContainer}>
-            {technologies.map(tech => (
-              <GlassCard key={tech} style={styles.chip}>
-                <Text variant="caption" color={theme.colors.primary} weight="medium">
-                  {tech}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleRemoveTechnology(tech)}
-                  style={styles.chipRemove}
-                >
-                  <Icon name="x" size={14} color={theme.colors.primary} />
-                </TouchableOpacity>
-              </GlassCard>
-            ))}
-          </View>
-        </View>
 
 
-        <Button
-          title={loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Project'}
-          onPress={handleCreate}
-          loading={loading}
-          fullWidth
-          style={styles.submitButton}
-        />
+          <Button
+            title={loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Project'}
+            onPress={handleCreate}
+            loading={loading}
+            fullWidth
+            style={styles.submitButton}
+          />
         </View>
       </ScrollView>
     </ScreenWrapper>
@@ -227,7 +233,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    marginBottom: theme.spacing.sm,
+    // marginBottom: theme.spacing.sm,
   },
   scrollContainer: {
     flex: 1,
@@ -265,7 +271,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,

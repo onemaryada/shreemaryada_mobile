@@ -12,6 +12,7 @@ import { TasksStackParamList } from '../TasksNavigator';
 import { ScreenWrapper, Text, Button, GlassCard } from '../../../shared/components';
 import { theme } from '../../../core/theme';
 import { gradients } from '../../../core/theme/colors';
+import { getTaskStatusBadgeColor, getPriorityBadgeColor } from '../../../core/theme/badgeHelper';
 import { firebaseFirestore, COLLECTIONS } from '../../../core/firebase';
 import { Task } from '../services/tasksService';
 import Icon from 'react-native-vector-icons/Feather';
@@ -63,38 +64,13 @@ export const TaskDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   }, [task?.projectId]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Done':
-        return theme.colors.success;
-      case 'In Progress':
-        return theme.colors.info;
-      case 'Review':
-        return theme.colors.warning;
-      case 'Todo':
-      default:
-        return theme.colors.textSecondary;
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High':
-        return theme.colors.error;
-      case 'Medium':
-        return theme.colors.warning;
-      case 'Low':
-      default:
-        return theme.colors.success;
-    }
-  };
 
   const handleDelete = () => {
     Alert.alert(
       'Delete Task',
       `Are you sure you want to delete "${task?.title}"? This action cannot be undone.`,
       [
-        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        { text: 'Cancel', onPress: () => { }, style: 'cancel' },
         {
           text: 'Delete',
           onPress: async () => {
@@ -148,8 +124,6 @@ export const TaskDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
     <ScreenWrapper
       safeArea
       paddingHorizontal
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       <View style={styles.headerContainer}>
         <TouchableOpacity
@@ -161,7 +135,7 @@ export const TaskDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Text variant="h1" style={styles.title}>{task.title}</Text>
+          <Text variant="h2" style={styles.title}>{task.title}</Text>
         </View>
       </View>
 
@@ -184,7 +158,7 @@ export const TaskDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
               <View
                 style={[
                   styles.statusPill,
-                  { backgroundColor: getStatusColor(task.status) + '20' },
+                  { backgroundColor: getTaskStatusBadgeColor(task.status as any).bg },
                 ]}
               >
                 <Icon
@@ -192,16 +166,16 @@ export const TaskDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
                     task.status === 'Done'
                       ? 'check-circle'
                       : task.status === 'In Progress'
-                      ? 'play-circle'
-                      : 'circle'
+                        ? 'play-circle'
+                        : 'circle'
                   }
                   size={16}
-                  color={getStatusColor(task.status)}
+                  color={getTaskStatusBadgeColor(task.status as any).text}
                 />
                 <Text
                   variant="caption"
                   weight="bold"
-                  color={getStatusColor(task.status)}
+                  color={getTaskStatusBadgeColor(task.status as any).text}
                   style={styles.statusText}
                 >
                   {task.status}
@@ -221,7 +195,7 @@ export const TaskDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
               <View
                 style={[
                   styles.priorityPill,
-                  { backgroundColor: getPriorityColor(task.priority) + '20' },
+                  { backgroundColor: getPriorityBadgeColor(task.priority as any).bg },
                 ]}
               >
                 <Icon
@@ -229,16 +203,16 @@ export const TaskDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
                     task.priority === 'High'
                       ? 'alert-circle'
                       : task.priority === 'Medium'
-                      ? 'minus-circle'
-                      : 'check-circle'
+                        ? 'minus-circle'
+                        : 'check-circle'
                   }
                   size={16}
-                  color={getPriorityColor(task.priority)}
+                  color={getPriorityBadgeColor(task.priority as any).text}
                 />
                 <Text
                   variant="caption"
                   weight="bold"
-                  color={getPriorityColor(task.priority)}
+                  color={getPriorityBadgeColor(task.priority as any).text}
                   style={styles.priorityText}
                 >
                   {task.priority}
@@ -281,58 +255,6 @@ export const TaskDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
               <Text variant="body" color={theme.colors.text} style={styles.projectName}>
                 {projectName || task.projectId}
               </Text>
-            </View>
-          </GlassCard>
-        )}
-
-        {/* Subtasks */}
-        {totalSubtasks > 0 && (
-          <GlassCard style={styles.section}>
-            <View style={styles.subtasksHeader}>
-              <Text
-                variant="caption"
-                weight="bold"
-                color={theme.colors.textSecondary}
-                style={styles.sectionLabel}
-              >
-                SUBTASKS
-              </Text>
-              <Text variant="caption" color={theme.colors.textSecondary}>
-                {completedSubtasks}/{totalSubtasks}
-              </Text>
-            </View>
-            <View style={styles.progressBarContainer}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0}%` },
-                ]}
-              />
-            </View>
-            <View style={styles.subtasksList}>
-              {task.subtasks?.map((subtask, index) => (
-                <View key={index} style={styles.subtaskItem}>
-                  <Icon
-                    name={subtask.completed ? 'check-square' : 'square'}
-                    size={18}
-                    color={subtask.completed ? theme.colors.success : theme.colors.textTertiary}
-                  />
-                  <Text
-                    variant="body"
-                    color={
-                      subtask.completed
-                        ? theme.colors.textSecondary
-                        : theme.colors.text
-                    }
-                    style={[
-                      styles.subtaskText,
-                      subtask.completed && styles.subtaskCompleted,
-                    ]}
-                  >
-                    {subtask.title}
-                  </Text>
-                </View>
-              ))}
             </View>
           </GlassCard>
         )}
@@ -396,13 +318,13 @@ const styles = StyleSheet.create({
   },
   statusPriorityRow: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
+    gap: theme.spacing.lg,
   },
   statusContainer: {
-    flex: 1,
+    flex: 0,
   },
   priorityContainer: {
-    flex: 1,
+    flex: 0,
   },
   label: {
     marginBottom: theme.spacing.sm,
@@ -412,9 +334,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
     gap: theme.spacing.xs,
+    alignSelf: 'flex-start',
   },
   statusText: {
     marginLeft: theme.spacing.xs,
@@ -423,9 +346,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
     gap: theme.spacing.xs,
+    alignSelf: 'flex-start',
   },
   priorityText: {
     marginLeft: theme.spacing.xs,
@@ -444,38 +368,6 @@ const styles = StyleSheet.create({
   },
   projectName: {
     flex: 1,
-  },
-  subtasksHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  progressBarContainer: {
-    height: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 3,
-    marginBottom: theme.spacing.md,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: theme.colors.success,
-    borderRadius: 3,
-  },
-  subtasksList: {
-    gap: theme.spacing.sm,
-  },
-  subtaskItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  subtaskText: {
-    flex: 1,
-  },
-  subtaskCompleted: {
-    textDecorationLine: 'line-through',
   },
   actionButtons: {
     gap: theme.spacing.md,

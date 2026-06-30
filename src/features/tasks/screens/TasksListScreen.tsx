@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TasksStackParamList } from '../TasksNavigator';
 import { ScreenWrapper, Text, EmptyState, GlassCard, AnimatedListItem } from '../../../shared/components';
 import { theme } from '../../../core/theme';
+import { getTaskStatusBadgeColor, getPriorityBadgeColor } from '../../../core/theme/badgeHelper';
 import { getUserTasks, Task } from '../services/tasksService';
 import { useAuth } from '../../../core/auth/AuthContext';
 import Icon from 'react-native-vector-icons/Feather';
@@ -30,45 +31,6 @@ export const TasksListScreen: React.FC<Props> = ({ navigation }) => {
     return unsubscribe;
   }, [user]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Done':
-        return theme.colors.success;
-      case 'In Progress':
-        return theme.colors.info;
-      case 'Review':
-        return theme.colors.warning;
-      case 'Todo':
-      default:
-        return theme.colors.textSecondary;
-    }
-  };
-
-  const getStatusBackgroundColor = (status: string) => {
-    switch (status) {
-      case 'Done':
-        return 'rgba(16, 185, 129, 0.2)';
-      case 'In Progress':
-        return 'rgba(59, 130, 246, 0.2)';
-      case 'Review':
-        return 'rgba(245, 158, 11, 0.2)';
-      case 'Todo':
-      default:
-        return 'rgba(107, 114, 128, 0.2)';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High':
-        return theme.colors.error;
-      case 'Medium':
-        return theme.colors.warning;
-      case 'Low':
-      default:
-        return theme.colors.success;
-    }
-  };
 
   const renderItem = ({ item, index }: { item: Task; index: number }) => {
     const completedSubtasks = item.subtasks?.filter(st => st.completed).length || 0;
@@ -89,7 +51,7 @@ export const TasksListScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
               </View>
               <View style={styles.titleContainer}>
-                <Text variant="h3" weight="bold" numberOfLines={1}>
+                <Text variant="body" weight="medium" numberOfLines={1}>
                   {item.title}
                 </Text>
                 {item.description && (
@@ -107,14 +69,19 @@ export const TasksListScreen: React.FC<Props> = ({ navigation }) => {
                 <View
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: getStatusBackgroundColor(item.status) },
+                    { backgroundColor: getTaskStatusBadgeColor(item.status as any).bg },
                   ]}
                 >
-                  <Text variant="caption" weight="bold" color={getStatusColor(item.status)} numberOfLines={1}>
+                  <Text
+                    variant="caption"
+                    weight="bold"
+                    color={getTaskStatusBadgeColor(item.status as any).text}
+                    numberOfLines={1}
+                  >
                     {item.status}
                   </Text>
                 </View>
-                
+
                 <View style={styles.metaItem}>
                   <Icon name="calendar" size={14} color={theme.colors.primary} />
                   <Text variant="caption" color={theme.colors.textSecondary}>
@@ -155,13 +122,11 @@ export const TasksListScreen: React.FC<Props> = ({ navigation }) => {
     <ScreenWrapper
       safeArea
       paddingHorizontal
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
-          <Text variant="h1" style={styles.title}>My Tasks</Text>
-          <Text variant="body" color={theme.colors.textSecondary}>
+          <Text variant="h2" style={styles.title}>My Tasks</Text>
+          <Text variant="caption" color={theme.colors.textSecondary}>
             {activeTasks} active · {completedTasks} completed
           </Text>
         </View>
@@ -216,13 +181,13 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
   addButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -263,7 +228,7 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'column',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: theme.spacing.sm,
   },
   taskDescription: {
@@ -274,16 +239,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   statusBadge: {
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
-    minWidth: 70,
+    minWidth: 80,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   priorityBadge: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
+    minWidth: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   metaItem: {
     flexDirection: 'row',

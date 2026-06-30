@@ -100,8 +100,6 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
       paddingHorizontal={false}
       keyboardAvoiding={false}
       paddingVertical
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -185,8 +183,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconBox: {
-    width: 150,
-    height: 150,
+    width: 250,
+    height: 250,
     borderRadius: 75,
     backgroundColor: theme.colors.surface,
     justifyContent: 'center',

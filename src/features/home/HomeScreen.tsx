@@ -102,17 +102,17 @@ export const HomeScreen = () => {
         <View style={styles.statCard}>
           <Icon name="briefcase" size={24} color={theme.colors.primary} />
           <Text variant="h2" style={styles.statValue}>{activeProjects}</Text>
-          <Text variant="caption" color={theme.colors.textSecondary}>Active Projects</Text>
+          <Text style={{textAlign: 'center'}} variant="caption" color={theme.colors.textSecondary}>Active Projects</Text>
         </View>
         <View style={styles.statCard}>
           <Icon name="check-square" size={24} color={theme.colors.warning} />
           <Text variant="h2" style={styles.statValue}>{pendingTasks}</Text>
-          <Text variant="caption" color={theme.colors.textSecondary}>Pending Tasks</Text>
+          <Text style={{textAlign: 'center'}} variant="caption" color={theme.colors.textSecondary}>Pending Tasks</Text>
         </View>
         <View style={styles.statCard}>
           <Icon name="check-circle" size={24} color={theme.colors.success} />
           <Text variant="h2" style={styles.statValue}>{completedTasks}</Text>
-          <Text variant="caption" color={theme.colors.textSecondary}>Completed</Text>
+          <Text style={{textAlign: 'center'}} variant="caption" color={theme.colors.textSecondary}>Completed Tasks</Text>
         </View>
       </View>
     );
@@ -181,7 +181,7 @@ export const HomeScreen = () => {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
         <View style={styles.header}>
-          <Text variant="h1" style={styles.title}>Hello, {displayName} 👋</Text>
+          <Text variant="h2" style={styles.title}>Hello, {displayName} 👋</Text>
           <Text variant="body" color={theme.colors.textSecondary}>{headerMessage}</Text>
         </View>
 
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   title: {
-    marginBottom: theme.spacing.sm,
+    // marginBottom: theme.spacing.sm,
   },
   sectionTitle: {
     marginBottom: theme.spacing.md,
@@ -220,6 +220,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },

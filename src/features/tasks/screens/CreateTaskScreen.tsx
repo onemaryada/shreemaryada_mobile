@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TasksStackParamList } from '../TasksNavigator';
 import { ScreenWrapper, Text, Input, Button, GlassCard, ProjectSelector } from '../../../shared/components';
 import { theme } from '../../../core/theme';
+import { getTaskStatusBadgeColor, getPriorityBadgeColor } from '../../../core/theme/badgeHelper';
 import { createTask, updateTask, Task } from '../services/tasksService';
 import { firebaseFirestore, COLLECTIONS } from '../../../core/firebase';
 import { useAuth } from '../../../core/auth/AuthContext';
@@ -23,6 +24,7 @@ export const CreateTaskScreen: React.FC<Props> = ({ navigation, route }) => {
   const [status, setStatus] = useState('Todo');
   const [priority, setPriority] = useState('Medium');
   const [loading, setLoading] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const statusOptions = ['Todo', 'In Progress', 'Review', 'Done'];
   const priorityOptions = ['Low', 'Medium', 'High'];
@@ -53,6 +55,8 @@ export const CreateTaskScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [isEditing, taskId]);
 
   const handleSave = async () => {
+    setHasSubmitted(true);
+
     if (!title.trim()) {
       Alert.alert('Validation Error', 'Task title is required');
       return;
@@ -96,32 +100,7 @@ export const CreateTaskScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const getPriorityColor = (p: string) => {
-    switch (p) {
-      case 'High':
-        return theme.colors.error;
-      case 'Medium':
-        return theme.colors.warning;
-      case 'Low':
-        return theme.colors.success;
-      default:
-        return theme.colors.primary;
-    }
-  };
 
-  const getStatusColor = (s: string) => {
-    switch (s) {
-      case 'Done':
-        return theme.colors.success;
-      case 'In Progress':
-        return theme.colors.info;
-      case 'Review':
-        return theme.colors.warning;
-      case 'Todo':
-      default:
-        return theme.colors.textSecondary;
-    }
-  };
 
   if (!user) return null;
 
@@ -130,8 +109,6 @@ export const CreateTaskScreen: React.FC<Props> = ({ navigation, route }) => {
       safeArea
       paddingHorizontal
       scrollable={false}
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       <View style={styles.headerContainer}>
         <TouchableOpacity
@@ -143,12 +120,12 @@ export const CreateTaskScreen: React.FC<Props> = ({ navigation, route }) => {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Text variant="h1" style={styles.title}>
+          <Text variant="h2" style={styles.title}>
             {isEditing ? 'Edit Task' : 'New Task'}
           </Text>
-          <Text variant="body" color={theme.colors.textSecondary}>
+          {/* <Text variant="body" color={theme.colors.textSecondary}>
             {isEditing ? 'Update task details' : 'Create a new task for a project'}
-          </Text>
+          </Text> */}
         </View>
 
       </View>
@@ -184,66 +161,69 @@ export const CreateTaskScreen: React.FC<Props> = ({ navigation, route }) => {
                 setProjectName(name);
               }}
               userId={user.uid}
+              showError={hasSubmitted}
             />
           )}
 
           <View style={styles.section}>
-          <Text variant="h3" weight="bold" style={styles.sectionTitle}>
-            Task Status
-          </Text>
+            <Text variant="h3" weight="bold" style={styles.sectionTitle}>
+              Task Status
+            </Text>
             <View style={styles.optionsContainer}>
-              {statusOptions.map(option => (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionButton,
-                    status === option && [
-                      styles.optionButtonActive,
-                      { backgroundColor: getStatusColor(option) + '20', borderColor: getStatusColor(option) },
-                    ],
-                  ]}
-                  onPress={() => setStatus(option)}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    variant="caption"
-                    weight="bold"
-                    color={status === option ? getStatusColor(option) : theme.colors.textSecondary}
+              {statusOptions.map(option => {
+                const badgeColor = getTaskStatusBadgeColor(option as any);
+                const isSelected = status === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.statusBadgeButton,
+                      isSelected && { backgroundColor: badgeColor.bg, borderColor: badgeColor.text },
+                    ]}
+                    onPress={() => setStatus(option)}
+                    activeOpacity={0.7}
                   >
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      variant="caption"
+                      weight={isSelected ? 'bold' : 'medium'}
+                      color={isSelected ? badgeColor.text : theme.colors.textSecondary}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
           <View style={styles.section}>
-          <Text variant="h3" weight="bold" style={styles.sectionTitle}>
-            Priority
-          </Text>
+            <Text variant="h3" weight="bold" style={styles.sectionTitle}>
+              Priority
+            </Text>
             <View style={styles.optionsContainer}>
-              {priorityOptions.map(option => (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionButton,
-                    priority === option && [
-                      styles.optionButtonActive,
-                      { backgroundColor: getPriorityColor(option) + '20', borderColor: getPriorityColor(option) },
-                    ],
-                  ]}
-                  onPress={() => setPriority(option)}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    variant="caption"
-                    weight="bold"
-                    color={priority === option ? getPriorityColor(option) : theme.colors.textSecondary}
+              {priorityOptions.map(option => {
+                const badgeColor = getPriorityBadgeColor(option as any);
+                const isSelected = priority === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.priorityBadgeButton,
+                      isSelected && { backgroundColor: badgeColor.bg, borderColor: badgeColor.text },
+                    ]}
+                    onPress={() => setPriority(option)}
+                    activeOpacity={0.7}
                   >
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      variant="caption"
+                      weight={isSelected ? 'bold' : 'medium'}
+                      color={isSelected ? badgeColor.text : theme.colors.textSecondary}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -251,7 +231,6 @@ export const CreateTaskScreen: React.FC<Props> = ({ navigation, route }) => {
             title={loading ? (isEditing ? 'Updating...' : 'Creating...') : isEditing ? 'Update Task' : 'Create Task'}
             onPress={handleSave}
             loading={loading}
-            disabled={!projectId || !title.trim() || loading}
             fullWidth
             style={styles.submitButton}
           />
@@ -280,7 +259,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    marginBottom: theme.spacing.sm,
+    // marginBottom: theme.spacing.sm,
   },
   scrollContent: {
     flex: 1,
@@ -312,13 +291,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: theme.colors.border,
+    backgroundColor: 'transparent',
   },
-  optionButtonActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+  statusBadgeButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: 'transparent',
+  },
+  priorityBadgeButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: 'transparent',
   },
   submitButton: {
     marginTop: theme.spacing.lg,

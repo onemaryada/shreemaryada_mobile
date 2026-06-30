@@ -113,8 +113,6 @@ export const SignupScreen: React.FC<Props> = ({ route, navigation }) => {
     <ScreenWrapper
       keyboardAvoiding
       scrollable
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       <View style={styles.header}>
         <Text variant="h1" style={styles.title}>Create Account</Text>
@@ -276,7 +274,6 @@ export const SignupScreen: React.FC<Props> = ({ route, navigation }) => {
         onPress={handleSubmit(onSubmit)}
         loading={loading}
         fullWidth
-        disabled={loading || !termsAccepted || !privacyAccepted}
       />
 
       <View style={styles.loginContainer}>

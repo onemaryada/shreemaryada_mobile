@@ -62,7 +62,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     setServerError('');
     try {
       const userCredential = await firebaseAuth.signInWithEmailAndPassword(data.email, data.password);
-      
+
       // Wait for Firebase Auth token to propagate to Firestore before querying
       await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -185,8 +185,6 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     <ScreenWrapper
       keyboardAvoiding
       scrollable
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       <View style={styles.header}>
         <Text variant="h1" style={styles.title}>Welcome Back</Text>

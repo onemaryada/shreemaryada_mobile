@@ -5,6 +5,7 @@ import { ProjectsStackParamList } from '../ProjectsNavigator';
 import { ScreenWrapper, Text, Button, GlassCard } from '../../../shared/components';
 import { theme } from '../../../core/theme';
 import { gradients } from '../../../core/theme/colors';
+import { getProjectStatusBadgeColor } from '../../../core/theme/badgeHelper';
 import { firebaseFirestore, COLLECTIONS } from '../../../core/firebase';
 import { Project } from '../services/projectsService';
 import Icon from 'react-native-vector-icons/Feather';
@@ -36,18 +37,6 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
     return () => subscriber();
   }, [projectId]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return theme.colors.success;
-      case 'Completed':
-        return theme.colors.info;
-      case 'On Hold':
-        return theme.colors.warning;
-      default:
-        return theme.colors.textSecondary;
-    }
-  };
 
   const handleOpenUrl = async (url: string) => {
     try {
@@ -64,7 +53,7 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
       'Delete Project',
       `Are you sure you want to delete "${project?.name}"? This action cannot be undone.`,
       [
-        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        { text: 'Cancel', onPress: () => { }, style: 'cancel' },
         {
           text: 'Delete',
           onPress: async () => {
@@ -118,8 +107,6 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
     <ScreenWrapper
       safeArea
       paddingHorizontal
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       <View style={styles.headerContainer}>
         <TouchableOpacity
@@ -131,7 +118,7 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Text variant="h1" style={styles.title}>{project.name}</Text>
+          <Text variant="h2" style={styles.title}>{project.name}</Text>
         </View>
       </View>
 
@@ -154,7 +141,7 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
               <View
                 style={[
                   styles.statusPill,
-                  { backgroundColor: getStatusColor(project.status) + '20' },
+                  { backgroundColor: getProjectStatusBadgeColor(project.status as any).bg },
                 ]}
               >
                 <Icon
@@ -162,16 +149,16 @@ export const ProjectDetailsScreen: React.FC<Props> = ({ route, navigation }) => 
                     project.status === 'Completed'
                       ? 'check-circle'
                       : project.status === 'Active'
-                      ? 'play-circle'
-                      : 'pause-circle'
+                        ? 'play-circle'
+                        : 'pause-circle'
                   }
                   size={16}
-                  color={getStatusColor(project.status)}
+                  color={getProjectStatusBadgeColor(project.status as any).text}
                 />
                 <Text
                   variant="caption"
                   weight="bold"
-                  color={getStatusColor(project.status)}
+                  color={getProjectStatusBadgeColor(project.status as any).text}
                   style={styles.statusText}
                 >
                   {project.status}
@@ -332,10 +319,10 @@ const styles = StyleSheet.create({
   },
   statusPriorityRow: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
+    gap: theme.spacing.lg,
   },
   statusContainer: {
-    flex: 1,
+    flex: 0,
   },
   label: {
     marginBottom: theme.spacing.sm,
@@ -345,7 +332,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
     gap: theme.spacing.xs,
     alignSelf: 'flex-start',

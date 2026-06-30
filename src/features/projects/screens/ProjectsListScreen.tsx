@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProjectsStackParamList } from '../ProjectsNavigator';
 import { ScreenWrapper, Text, Button, EmptyState, GlassCard, AnimatedListItem } from '../../../shared/components';
 import { theme } from '../../../core/theme';
+import { getProjectStatusBadgeColor } from '../../../core/theme/badgeHelper';
 import { getUserProjects, Project } from '../services/projectsService';
 import { useAuth } from '../../../core/auth/AuthContext';
 import Icon from 'react-native-vector-icons/Feather';
@@ -30,21 +31,9 @@ export const ProjectsListScreen: React.FC<Props> = ({ navigation }) => {
     return unsubscribe;
   }, [user]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return { bg: theme.colors.success + '20', text: theme.colors.success };
-      case 'Completed':
-        return { bg: theme.colors.info + '20', text: theme.colors.info };
-      case 'On Hold':
-        return { bg: theme.colors.warning + '20', text: theme.colors.warning };
-      default:
-        return { bg: theme.colors.textTertiary + '20', text: theme.colors.textSecondary };
-    }
-  };
 
   const renderItem = ({ item, index }: { item: Project; index: number }) => {
-    const statusColor = getStatusColor(item.status);
+    const statusColor = getProjectStatusBadgeColor(item.status as any);
 
     return (
       <AnimatedListItem index={index} delay={50}>
@@ -61,7 +50,7 @@ export const ProjectsListScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
               </View>
               <View style={styles.projectTitleContainer}>
-                <Text variant="h3" weight="bold" numberOfLines={1}>
+                <Text variant="body" weight="medium" numberOfLines={1}>
                   {item.name}
                 </Text>
                 {item.description && (
@@ -107,13 +96,11 @@ export const ProjectsListScreen: React.FC<Props> = ({ navigation }) => {
     <ScreenWrapper
       safeArea
       paddingHorizontal
-      showGradient
-      gradientColors={['#FFFFFF', theme.colors.primaryLight]}
     >
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
-          <Text variant="h1" style={styles.title}>Projects</Text>
-          <Text variant="body" color={theme.colors.textSecondary}>
+          <Text variant="h2" style={styles.title}>Projects</Text>
+          <Text variant="caption" color={theme.colors.textSecondary}>
             {projects.length} project{projects.length !== 1 ? 's' : ''}
           </Text>
         </View>
@@ -169,13 +156,13 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
   addButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -216,14 +203,15 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'column',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: theme.spacing.sm,
   },
   statusBadge: {
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.full,
-    minWidth: 70,
+    minWidth: 80,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   plusButton: {
